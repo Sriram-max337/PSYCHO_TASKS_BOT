@@ -42,8 +42,34 @@ def send_telegram_msg(text, chat_id):
     payload = {"chat_id":chat_id, "text":text}
     requests.post(url, json=payload)
 
+def send_with_buttons(text, chat_id, task_id):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id":chat_id,
+        "text":text,
+        "reply_markup":{
+            "inline_keyboard":[[{
+                "text":"✅Done","call_data":f"done_{task_id}"
+            }]]
+        }
+    }
+    requests.post(url, payload)
+
 @app.post("/telegram-webhook")
 async def telegram_webhook(request : Request, db : Session = Depends(get_db)):
+    data = await request.json()
+
+    if "callback_query" in data:
+        callback_data = data["callback_query"]["data"]
+        task_id = int(callback_data.replace("done_",""))
+        task = db.query(Task).filter(Task.task_id == task_id).first()
+        if task:
+            task.status = True
+            task.finished_on = date.today()
+            db.commit()
+            send_telegram_msg(f"Marked done : {task.task_id}", chat_id)
+        return {"ok":True}
+
     data = await request.json()
 
     message_text = data["message"]["text"]
