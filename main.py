@@ -25,7 +25,7 @@ class Task(Base):
     created_on = Column(Date, default=date.today)
     dead_line = Column(Date)
     status = Column(Boolean, default=False)
-    finised_on = Column(Date)
+    finished_on = Column(Date)
 
 class Tasks():
     pass
