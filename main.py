@@ -6,13 +6,16 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 import os
 from datetime import date
+from apscheduler.schedulers.background import BackgroundScheduler
 
 load_dotenv(override=True)
 
 app = FastAPI(title="PSYCHO_TASKS_BOT")
+schedular = BackgroundScheduler()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -73,8 +76,7 @@ def health():
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
-    print(data)
-
+    
     if "callback_query" in data:
         callback_data = data["callback_query"]["data"]
         chat_id = data["callback_query"]["message"]["chat"]["id"]
@@ -131,18 +133,21 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
     return {"ok": True}
 
-# @app.get("/daily-reminder")
-# def daily_reminder(db : Session = Depends(get_db)):
-#     pending = db.query(Task).filter(Task.status == False).all()
+@app.get("/daily-reminder")
+def daily_reminder(db : Session = Depends(get_db)):
+    pending = db.query(Task).filter(Task.status == False).all()
 
-#     if not pending:
-#         send_telegram_msg("No pending tasks, but dont get comfortable Erripuka 💀")
-#     else:
-#         task_list = "\n".join([f"-> {t.task}" for t in pending])
-#         message = f"You have tasks to do \n{task_list}\n\n lazy ass get up and fucking complete them"
-#         send_telegram_msg(message)
+    if not pending:
+        send_telegram_msg("No pending tasks, but dont get comfortable Erripuka 💀")
+    else:
+        task_list = "\n".join([f"-> {t.task}" for t in pending])
+        message = f"You have tasks to do \n{task_list}\n\n lazy ass get up and fucking complete them"
+        send_telegram_msg(message, TELEGRAM_CHAT_ID)
 
-#     return {"pending_count" : len(pending)}
+    return {"pending_count" : len(pending)}
+
+schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
+schedular.start()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
