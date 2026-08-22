@@ -34,7 +34,7 @@ def get_db():
     finally:
         db.close()
 
-# ---------- Telegram helpers ----------
+
 
 def send_telegram_msg(text, chat_id):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -67,16 +67,19 @@ def send_task_buttons(chat_id, tasks, prefix):
     }
     requests.post(url, json=payload)
 
-# ---------- In-memory state tracker (for "add task" flow) ----------
+
 user_states = {}
 
-# ---------- Webhook ----------
+
+@app.get("/health")
+def health():
+    return {"msg":"ok"}
 
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
 
-    # ----- Button taps -----
+    
     if "callback_query" in data:
         callback_data = data["callback_query"]["data"]
         chat_id = data["callback_query"]["message"]["chat"]["id"]
@@ -111,7 +114,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
         return {"ok": True}
 
-    # ----- Regular text messages -----
+    
     message_text = data["message"]["text"]
     chat_id = data["message"]["chat"]["id"]
 
