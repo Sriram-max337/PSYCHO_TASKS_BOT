@@ -34,8 +34,6 @@ def get_db():
     finally:
         db.close()
 
-
-
 def send_telegram_msg(text, chat_id):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text}
@@ -57,7 +55,6 @@ def send_main_menu(chat_id):
     requests.post(url, json=payload)
 
 def send_task_buttons(chat_id, tasks, prefix):
-    """Sends each task as its own button. prefix = 'done' for now, extendable later."""
     buttons = [[{"text": t.task, "callback_data": f"{prefix}_{t.task_id}"}] for t in tasks]
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -67,9 +64,7 @@ def send_task_buttons(chat_id, tasks, prefix):
     }
     requests.post(url, json=payload)
 
-
 user_states = {}
-
 
 @app.get("/health")
 def health():
@@ -79,7 +74,6 @@ def health():
 async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
 
-    
     if "callback_query" in data:
         callback_data = data["callback_query"]["data"]
         chat_id = data["callback_query"]["message"]["chat"]["id"]
@@ -87,7 +81,6 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         if callback_data == "menu_add":
             user_states[chat_id] = "waiting_for_task"
             send_telegram_msg("Send the task text:", chat_id)
-            send_main_menu(chat_id)
 
         elif callback_data == "menu_list":
             tasks = db.query(Task).filter(Task.status == False).all()
@@ -95,7 +88,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_telegram_msg("No pending tasks 🎉", chat_id)
                 send_main_menu(chat_id)
             else:
-                task_list = "\n".join([f"{t.task_id}. {t.task}" for t in tasks])
+                task_list = "\n".join([f"{t.task}" for t in tasks])
                 send_telegram_msg(task_list, chat_id)
                 send_main_menu(chat_id)
 
@@ -106,7 +99,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_main_menu(chat_id)
             else:
                 send_task_buttons(chat_id, tasks, prefix="done")
-                send_main_menu(chat_id)
+                
 
         elif callback_data.startswith("done_"):
             task_id = int(callback_data.replace("done_", ""))
