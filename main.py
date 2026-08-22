@@ -73,6 +73,7 @@ def health():
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
+    print(data)
 
     if "callback_query" in data:
         callback_data = data["callback_query"]["data"]
@@ -129,6 +130,19 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         send_main_menu(chat_id)
 
     return {"ok": True}
+
+# @app.get("/daily-reminder")
+# def daily_reminder(db : Session = Depends(get_db)):
+#     pending = db.query(Task).filter(Task.status == False).all()
+
+#     if not pending:
+#         send_telegram_msg("No pending tasks, but dont get comfortable Erripuka 💀")
+#     else:
+#         task_list = "\n".join([f"-> {t.task}" for t in pending])
+#         message = f"You have tasks to do \n{task_list}\n\n lazy ass get up and fucking complete them"
+#         send_telegram_msg(message)
+
+#     return {"pending_count" : len(pending)}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
