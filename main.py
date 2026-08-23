@@ -84,7 +84,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
         if callback_data == "menu_add":
             user_states[chat_id] = "waiting_for_task"
-            send_telegram_msg("Send the task text:", chat_id)
+            send_telegram_msg("Send task text and deadline day", chat_id)
 
         elif callback_data == "menu_list":
             tasks = db.query(Task).filter(Task.status == False).all()
@@ -125,11 +125,27 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         send_main_menu(chat_id)
 
     elif user_states.get(chat_id) == "waiting_for_task":
+        parts = message_text.split(" ")
+        task_text = parts[0]
+        deadline = None
+        if len(parts) > 1:
+            try:
+                day = int(parts[1])
+                today = date.today()
+                deadline = date(today.year, today.month, day)
+
+                if deadline < today:
+                    if today.month == 12:
+                        deadline = date(today.year + 1, day)
+                    else:
+                        deadline = date(today.year, today.month+1, day)
+            except ValueError:
+                send_telegram_msg("Bad day format, just send a no. Task saved without deadline", chat_id)
         new_task = Task(task=message_text)
         db.add(new_task)
         db.commit()
         user_states[chat_id] = None
-        send_telegram_msg(f"Added: {message_text}", chat_id)
+        send_telegram_msg(f"Added: {task_text}" + (f" (due {deadline})" if deadline else ""), chat_id)
         send_main_menu(chat_id)
 
     return {"ok": True}
