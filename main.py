@@ -92,7 +92,8 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_telegram_msg("No pending tasks 🎉", chat_id)
                 send_main_menu(chat_id)
             else:
-                task_list = "\n".join([f"{t.task}" for t in tasks])
+                task_list = "\n".join([f"{t.task} (due {t.dead_line})" if t.dead_line else f"{t.task} (no deadline mentioned)"
+                                       for t in tasks])
                 send_telegram_msg(task_list, chat_id)
                 send_main_menu(chat_id)
 
@@ -141,7 +142,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                         deadline = date(today.year, today.month+1, day)
             except ValueError:
                 send_telegram_msg("Bad day format, just send a no. Task saved without deadline", chat_id)
-        new_task = Task(task=message_text, dead_line=deadline)
+        new_task = Task(task=task_text, dead_line=deadline)
         db.add(new_task)
         db.commit()
         user_states[chat_id] = None
