@@ -125,12 +125,12 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         send_main_menu(chat_id)
 
     elif user_states.get(chat_id) == "waiting_for_task":
-        parts = message_text.split(" ")
-        task_text = parts[0]
+        parts = message_text.split("/")
+        task_text = parts[0].strip()
         deadline = None
         if len(parts) > 1:
             try:
-                day = int(parts[1])
+                day = int(parts[1]).strip()
                 today = date.today()
                 deadline = date(today.year, today.month, day)
 
