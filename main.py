@@ -140,7 +140,9 @@ def daily_reminder(db : Session = Depends(get_db)):
     pending = db.query(Task).filter(Task.status == False).all()
 
     if pending:
+        pending_tasks_list = f"Pending Tasks List as of : {date.today()}"+"\n"+"\n".join([f"{t.task}" for t in pending])
         roast = get_roast(pending)
+        send_telegram_msg(pending_tasks_list, TELEGRAM_CHAT_ID)
         send_telegram_msg(roast, TELEGRAM_CHAT_ID)
         send_main_menu(TELEGRAM_CHAT_ID)
 
