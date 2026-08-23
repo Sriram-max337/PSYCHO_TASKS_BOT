@@ -16,6 +16,7 @@ schedular = BackgroundScheduler()
 DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -133,21 +134,42 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
     return {"ok": True}
 
+
 @app.get("/daily-reminder")
 def daily_reminder(db : Session = Depends(get_db)):
     pending = db.query(Task).filter(Task.status == False).all()
 
-    if not pending:
-        send_telegram_msg("No pending tasks, but dont get comfortable Erripuka 💀")
-    else:
-        task_list = "\n".join([f"-> {t.task}" for t in pending])
-        message = f"You have tasks to do \n{task_list}\n\n lazy ass get up and fucking complete them"
-        send_telegram_msg(message, TELEGRAM_CHAT_ID)
+    if pending:
+        roast = get_roast(pending)
+        send_telegram_msg(roast, TELEGRAM_CHAT_ID)
+        send_main_menu(TELEGRAM_CHAT_ID)
 
-    return {"pending_count" : len(pending)}
+    return {"pending tasks":len(pending)}
 
 schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
 schedular.start()
+
+
+def get_roast(pending_tasks):
+    task_list = ", ".join([t.task for t in pending_tasks])
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization" : f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type":"application/json"
+        },
+        json={
+            "model" : "openrouter/free",
+            "messages":[
+                {"role":"system", "content":"""You're a savage, sarcastic roast bot. 
+                Roast user for having pending tasks.
+                Keep it short, funny, brutal. No sugarcoating or sympathy"""
+                },
+                {"role":"user", "content": f"My pending tasks : {task_list}"}
+            ]
+        }    
+    )
+    return response.json()["choices"][0]["message"]["content"]
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
