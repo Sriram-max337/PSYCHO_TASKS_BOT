@@ -58,10 +58,10 @@ def send_main_menu(chat_id):
             "inline_keyboard": [
                 [{"text": "➕ Add Task", "callback_data": "menu_add"}],
                 [{"text": "📋 List Tasks", "callback_data": "menu_list"}],
-                [{"text": "✅ Mark Done", "callback_data": "menu_done"},
-                 {"text": "➕ Add Note", "callback_date":"menu_add_note"},
-                 {"text":"📋 List Notes", "callback_data":"menu_list_notes"},
-                 {"text":"❌ Delete Notes","callback_data":"menu_delete_notes"}]
+                [{"text": "✅ Mark Done", "callback_data": "menu_done"}],
+                [{"text": "➕ Add Note", "callback_data":"menu_add_note"}],
+                [{"text":"📋 List Notes", "callback_data":"menu_list_notes"}],
+                [{"text":"❌ Delete Notes","callback_data":"menu_delete_notes"}]
             ]
         }
     }
