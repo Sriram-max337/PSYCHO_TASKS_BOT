@@ -31,6 +31,12 @@ class Task(Base):
     status = Column(Boolean, default=False)
     finished_on = Column(Date)
 
+class Note(Base):
+    __tablename__="notes"
+    note_id = Column(Integer, primary_key=True)
+    notes = Column(String)
+    created_on = Column(Date)
+
 def get_db():
     db = SessionLocal()
     try:
@@ -52,7 +58,10 @@ def send_main_menu(chat_id):
             "inline_keyboard": [
                 [{"text": "➕ Add Task", "callback_data": "menu_add"}],
                 [{"text": "📋 List Tasks", "callback_data": "menu_list"}],
-                [{"text": "✅ Mark Done", "callback_data": "menu_done"}]
+                [{"text": "✅ Mark Done", "callback_data": "menu_done"},
+                 {"text": "➕ Add Note", "callback_date":"menu_add_note"},
+                 {"text":"📋 List Notes", "callback_data":"menu_list_notes"},
+                 {"text":"❌ Delete Notes","callback_data":"menu_delete_notes"}]
             ]
         }
     }
@@ -92,7 +101,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_telegram_msg("No pending tasks 🎉", chat_id)
                 send_main_menu(chat_id)
             else:
-                task_list = f"📋 Pending Tasks List as of {date.today()}"+"\n"+"\n".join([f"-> {t.task} (due {t.dead_line})" if t.dead_line else f"{t.task} (no deadline mentioned)"
+                task_list = f"📋 Pending Tasks List as of {date.today()}"+"\n"+"\n".join([f"-> {t.task} (due {t.dead_line})" if t.dead_line else f"-> {t.task} (no deadline mentioned)"
                                        for t in tasks])
                 send_telegram_msg(task_list, chat_id)
                 send_main_menu(chat_id)
@@ -118,7 +127,6 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
         return {"ok": True}
 
-    
     message_text = data["message"]["text"]
     chat_id = data["message"]["chat"]["id"]
 
