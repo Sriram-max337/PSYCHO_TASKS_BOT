@@ -257,9 +257,6 @@ def daily_reminder(db : Session = Depends(get_db)):
 
     return {"roast":roast,"pending tasks":len(pending)}
 
-schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
-schedular.start()
-
 
 def get_roast(pending_tasks):
     task_list = ", ".join([t.task for t in pending_tasks])
@@ -280,7 +277,7 @@ def get_roast(pending_tasks):
             ]
         }    
     )
-    return response.json()
+    return response.json()["choices"][0]["message"]["content"]
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
