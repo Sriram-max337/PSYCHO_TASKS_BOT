@@ -255,7 +255,7 @@ def daily_reminder(db : Session = Depends(get_db)):
         send_telegram_msg(roast, TELEGRAM_CHAT_ID)
         send_main_menu(TELEGRAM_CHAT_ID)
 
-    return {"pending tasks":len(pending)}
+    return {"roast":roast,"pending tasks":len(pending)}
 
 schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
 schedular.start()
