@@ -217,7 +217,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
     elif user_states.get(chat_id) == "waiting_for_note":
         notes_text = message_text
-        new_note = Note(notes=notes_text)
+        new_note = Note(notes=notes_text, created_on=date.today())
         db.add(new_note)
         db.commit()
         user_states[chat_id] = None
