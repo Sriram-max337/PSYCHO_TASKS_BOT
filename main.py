@@ -56,17 +56,41 @@ def send_main_menu(chat_id):
         "text": "What do you wanna do?",
         "reply_markup": {
             "inline_keyboard": [
-                [{"text": "➕ Add Task", "callback_data": "menu_add"}],
-                [{"text": "📋 List Tasks", "callback_data": "menu_list"}],
-                [{"text": "✅ Mark Done", "callback_data": "menu_done"}],
-                [{"text": "➕ Add Note", "callback_data":"menu_add_note"}],
-                [{"text":"📋 List Notes", "callback_data":"menu_list_notes"}],
-                [{"text":"❌ Delete Notes","callback_data":"menu_delete_notes"}]
+                [{"text":"TASKS", "callback_data":"Tasks_menu"}],
+                [{"text":"NOTES","callback_data":"Notes_menu"}]
             ]
         }
     }
     requests.post(url, json=payload)
 
+def send_tasks_menu(chat_id):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    tasks_buttons = [
+                [{"text": "➕ Add Task", "callback_data": "menu_add"}],
+                [{"text": "📋 List Tasks", "callback_data": "menu_list"}],
+                [{"text": "✅ Mark Done", "callback_data": "menu_done"}],
+            ]
+    payload = {
+        "chat_id":chat_id,
+        "text":"Choose an option",
+        "reply_markup":{"inline_keyboard":tasks_buttons}
+    }
+    requests.post(url, json=payload)
+
+def send_notes_menu(chat_id):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    notes_buttons = [
+                [{"text": "➕ Add Note", "callback_data":"menu_add_note"}],
+                [{"text":"📋 List Notes", "callback_data":"menu_list_notes"}],
+                [{"text":"❌ Delete Notes","callback_data":"menu_delete_note"}]
+            ]
+    payload = {
+        "chat_id":chat_id,
+        "text":"Choose an option",
+        "reply_markup":{"inline_keyboard":notes_buttons}
+    }
+    requests.post(url, json=payload)
+    
 def send_task_buttons(chat_id, tasks, prefix):
     buttons = [[{"text": t.task, "callback_data": f"{prefix}_{t.task_id}"}] for t in tasks]
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -91,7 +115,12 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         callback_data = data["callback_query"]["data"]
         chat_id = data["callback_query"]["message"]["chat"]["id"]
 
-        if callback_data == "menu_add":
+        if callback_data == "Tasks_menu":
+            send_tasks_menu(chat_id)
+        elif callback_data == "Notes_menu":
+            send_notes_menu(chat_id)
+
+        elif callback_data == "menu_add":
             user_states[chat_id] = "waiting_for_task"
             send_telegram_msg("Send task text and deadline day", chat_id)
 
@@ -125,6 +154,31 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_telegram_msg(f"Marked done: {task.task}", chat_id)
                 send_main_menu(chat_id)
 
+        elif callback_data == "menu_add_note":
+            user_states[chat_id] = "waiting_for_note"
+            send_telegram_msg("Send the Note : ", chat_id)
+        elif callback_data == "menu_list_notes":
+            notes = db.query(Note).all()
+            if not notes:
+                send_telegram_msg("No Notes added yet", chat_id)
+                send_main_menu(chat_id)
+            else:
+                notes_list = f"Added Notes"+"\n"+"\n".join(f"-> {n.notes}" for n in notes)
+                send_telegram_msg(notes_list, chat_id)
+                send_main_menu(chat_id)
+
+        elif callback_data == "menu_delete_note":
+            notes = db.query(Note).all()
+            if not notes:
+                send_telegram_msg("No Notes added yet", chat_id)
+                send_main_menu(chat_id)
+            else:
+                user_states[chat_id] = "waiting_for_delete_note"
+                notes_list = f"Added Notes"+"\n"+"\n".join(f"{n.note_id} : {n.notes}" for n in notes)
+                send_telegram_msg(notes_list, chat_id)
+            
+
+
         return {"ok": True}
 
     message_text = data["message"]["text"]
@@ -157,8 +211,33 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         send_telegram_msg(f"Added: {task_text}" + (f" (due {deadline})" if deadline else ""), chat_id)
         send_main_menu(chat_id)
 
-    return {"ok": True}
+    elif user_states.get(chat_id) == "waiting_for_note":
+        notes_text = message_text
+        new_note = Note(notes=notes_text)
+        db.add(new_note)
+        db.commit()
+        user_states[chat_id] = None
+        send_telegram_msg(f"Added: {notes_text}")
+        send_main_menu(chat_id)
 
+    elif user_states.get(chat_id) == "waiting_for_delete_note":
+        notes_text = message_text
+        try:
+            nid = int(notes_text)
+            delete_note = db.query(Note).filter(Note.note_id == nid).first()
+            if not delete_note:
+                send_telegram_msg(f"There's no note with id : {nid}, try again")
+                send_notes_menu(chat_id)
+            else:
+                db.delete(delete_note)
+                db.commit()
+                send_telegram_msg(f"Deleted note : {nid}")
+                send_notes_menu(chat_id)
+        except ValueError:
+            send_telegram_msg("Enter a Note id from the listed notes, try again", chat_id)
+            send_notes_menu(chat_id)
+
+    return {"ok": True}
 
 @app.get("/daily-reminder")
 def daily_reminder(db : Session = Depends(get_db)):
