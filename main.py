@@ -202,7 +202,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
                 if deadline < today:
                     if today.month == 12:
-                        deadline = date(today.year + 1, day)
+                        deadline = date(today.year + 1,1, day)
                     else:
                         deadline = date(today.year, today.month+1, day)
             except ValueError:
@@ -220,7 +220,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         db.add(new_note)
         db.commit()
         user_states[chat_id] = None
-        send_telegram_msg(f"Added: {notes_text}")
+        send_telegram_msg(f"Added: {notes_text}", chat_id)
         send_main_menu(chat_id)
 
     elif user_states.get(chat_id) == "waiting_for_delete_note":
@@ -229,12 +229,12 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             nid = int(notes_text)
             delete_note = db.query(Note).filter(Note.note_id == nid).first()
             if not delete_note:
-                send_telegram_msg(f"There's no note with id : {nid}, try again")
+                send_telegram_msg(f"There's no note with id : {nid}, try again", chat_id)
                 send_notes_menu(chat_id)
             else:
                 db.delete(delete_note)
                 db.commit()
-                send_telegram_msg(f"Deleted note : {nid}")
+                send_telegram_msg(f"Deleted note : {nid}", chat_id)
                 send_notes_menu(chat_id)
         except ValueError:
             send_telegram_msg("Enter a Note id from the listed notes, try again", chat_id)
