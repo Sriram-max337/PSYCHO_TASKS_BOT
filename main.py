@@ -17,6 +17,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_LLM = os.getenv("OPENROUTER_LLM")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -269,7 +270,7 @@ def get_roast(pending_tasks):
             "Content-Type":"application/json"
         },
         json={
-            "model" : "openrouter/free",
+            "model" : OPENROUTER_LLM,
             "messages":[
                 {"role":"system", "content":"""You're a savage, sarcastic roast bot. 
                 Roast user for having pending tasks.
@@ -279,7 +280,7 @@ def get_roast(pending_tasks):
             ]
         }    
     )
-    return response.json()["choices"][0]["message"]["content"]
+    return response.json()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
