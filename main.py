@@ -57,8 +57,7 @@ def send_main_menu(chat_id):
         "reply_markup": {
             "inline_keyboard": [
                 [{"text":"TASKS", "callback_data":"Tasks_menu"}],
-                [{"text":"NOTES","callback_data":"Notes_menu"},
-                {"text":"Back","callback_data":"Back_to_main_menu"}]
+                [{"text":"NOTES","callback_data":"Notes_menu"}]
             ]
         }
     }
@@ -70,6 +69,7 @@ def send_tasks_menu(chat_id):
                 [{"text": "➕ Add Task", "callback_data": "menu_add"}],
                 [{"text": "📋 List Tasks", "callback_data": "menu_list"}],
                 [{"text": "✅ Mark Done", "callback_data": "menu_done"}],
+                [{"text":"Back to Menu", "callback_data":"back_to_menu"}]
             ]
     payload = {
         "chat_id":chat_id,
@@ -83,7 +83,8 @@ def send_notes_menu(chat_id):
     notes_buttons = [
                 [{"text": "➕ Add Note", "callback_data":"menu_add_note"}],
                 [{"text":"📋 List Notes", "callback_data":"menu_list_notes"}],
-                [{"text":"❌ Delete Notes","callback_data":"menu_delete_note"}]
+                [{"text":"❌ Delete Notes","callback_data":"menu_delete_note"}],
+                [{"text":"Back to Menu", "callback_data":"back_to_menu"}]
             ]
     payload = {
         "chat_id":chat_id,
@@ -120,7 +121,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             send_tasks_menu(chat_id)
         elif callback_data == "Notes_menu":
             send_notes_menu(chat_id)
-        elif callback_data == "Back_to_main_menu":
+        elif callback_data == "back_to_menu":
             send_main_menu(chat_id)
 
         elif callback_data == "menu_add":
