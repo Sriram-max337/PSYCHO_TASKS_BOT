@@ -57,7 +57,8 @@ def send_main_menu(chat_id):
         "reply_markup": {
             "inline_keyboard": [
                 [{"text":"TASKS", "callback_data":"Tasks_menu"}],
-                [{"text":"NOTES","callback_data":"Notes_menu"}]
+                [{"text":"NOTES","callback_data":"Notes_menu"},
+                {"text":"Back","callback_data":"Back_to_main_menu"}]
             ]
         }
     }
@@ -119,6 +120,8 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             send_tasks_menu(chat_id)
         elif callback_data == "Notes_menu":
             send_notes_menu(chat_id)
+        elif callback_data == "Back_to_main_menu":
+            send_main_menu(chat_id)
 
         elif callback_data == "menu_add":
             user_states[chat_id] = "waiting_for_task"
