@@ -279,5 +279,8 @@ def get_roast(pending_tasks):
     )
     return response.json()["choices"][0]["message"]["content"]
 
+schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
+schedular.start()
+
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
