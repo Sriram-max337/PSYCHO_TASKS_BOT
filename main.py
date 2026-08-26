@@ -239,11 +239,11 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             else:
                 db.delete(delete_note)
                 db.commit()
+                user_states[chat_id] = None
                 send_telegram_msg(f"Deleted note : {nid}", chat_id)
                 send_notes_menu(chat_id)
         except ValueError:
             send_telegram_msg("Enter a Note id from the listed notes, try again", chat_id)
-            send_notes_menu(chat_id)
 
     return {"ok": True}
 
