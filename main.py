@@ -35,7 +35,7 @@ class Task(Base):
 class Note(Base):
     __tablename__="notes"
     note_id = Column(Integer, primary_key=True)
-    notes = Column(Text)
+    note = Column(Text, nullable=False)
     created_on = Column(Date)
 
 def get_db():
@@ -171,7 +171,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_telegram_msg("No Notes added yet", chat_id)
                 send_main_menu(chat_id)
             else:
-                notes_list = f"Added Notes"+"\n"+"\n".join(f"-> {n.notes}" for n in notes)
+                notes_list = f"Added Notes"+"\n"+"\n".join(f"-> {n.note}" for n in notes)
                 send_telegram_msg(notes_list, chat_id)
                 send_main_menu(chat_id)
 
@@ -182,7 +182,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 send_main_menu(chat_id)
             else:
                 user_states[chat_id] = "waiting_for_delete_note"
-                notes_list = f"Added Notes"+"\n"+"\n".join(f"{n.note_id} : {n.notes}" for n in notes)
+                notes_list = f"Added Notes"+"\n"+"\n".join(f"{n.note_id} : {n.note}" for n in notes)
                 send_telegram_msg(notes_list, chat_id)
             
 
@@ -221,7 +221,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
     elif user_states.get(chat_id) == "waiting_for_note":
         notes_text = message_text
-        new_note = Note(notes=notes_text, created_on=date.today())
+        new_note = Note(note=notes_text)
         db.add(new_note)
         db.commit()
         user_states[chat_id] = None
