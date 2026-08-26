@@ -263,6 +263,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
 def ai_helper(db: Session):
     pending_tasks = db.query(Task).filter(Task.status == False).all()
+    pending_tasks_list = ", ".join([t.task for t in pending_tasks])
     response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={
@@ -276,7 +277,7 @@ def ai_helper(db: Session):
                     help user plan, organize and do their pending tasks sort and adjust the task based on deadlines.
                     answer their queries keep it short, funny, brutal. No sugarcoating or sympathy"""
                     },
-                    {"role":"user", "content": f"My pending tasks : {pending_tasks}"}
+                    {"role":"user", "content": f"My pending tasks : {pending_tasks_list}"}
                 ]
             }    
         )
@@ -296,26 +297,6 @@ def daily_reminder_route(db: Session = Depends(get_db)):
         send_main_menu(TELEGRAM_CHAT_ID)
 
     return {"roast": roast, "pending tasks": len(pending)}
-
-
-def daily_reminder():
-    """Scheduler-triggered version — opens/closes its own session since
-    APScheduler calls this outside of FastAPI's dependency injection."""
-    db = SessionLocal()
-    try:
-        pending = db.query(Task).filter(Task.status == False).all()
-        roast = None
-
-        if pending:
-            pending_tasks_list = f"Pending Tasks List as of : {date.today()}"+"\n"+"\n".join([f"{t.task}" for t in pending])
-            roast = get_roast(pending)
-            send_telegram_msg(pending_tasks_list, TELEGRAM_CHAT_ID)
-            send_telegram_msg(roast, TELEGRAM_CHAT_ID)
-            send_main_menu(TELEGRAM_CHAT_ID)
-
-        return {"roast": roast, "pending tasks": len(pending)}
-    finally:
-        db.close()
 
 
 def get_roast(pending_tasks):
