@@ -5,6 +5,7 @@ import uvicorn
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, Text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 import os
+import calendar
 from datetime import date
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -94,7 +95,7 @@ def send_notes_menu(chat_id):
         "reply_markup":{"inline_keyboard":notes_buttons}
     }
     requests.post(url, json=payload)
-    
+
 def send_task_buttons(chat_id, tasks, prefix):
     buttons = [[{"text": t.task, "callback_data": f"{prefix}_{t.task_id}"}] for t in tasks]
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -124,7 +125,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         elif callback_data == "Notes_menu":
             send_notes_menu(chat_id)
         elif callback_data == "Bot_help":
-            send_telegram_msg(ai_helper(),chat_id)
+            send_telegram_msg(ai_helper(db), chat_id)
             send_main_menu(chat_id)
         elif callback_data == "back_to_menu":
             send_main_menu(chat_id)
@@ -204,13 +205,25 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             try:
                 day = int(parts[1].strip())
                 today = date.today()
-                deadline = date(today.year, today.month, day)
 
-                if deadline < today:
-                    if today.month == 12:
-                        deadline = date(today.year + 1,1, day)
+                # figure out which month this day should land in first,
+                # then validate the day against that month's actual length
+                target_year, target_month = today.year, today.month
+                last_day_this_month = calendar.monthrange(target_year, target_month)[1]
+
+                if day < today.day or day > last_day_this_month:
+                    # roll over to next month
+                    if target_month == 12:
+                        target_year += 1
+                        target_month = 1
                     else:
-                        deadline = date(today.year, today.month+1, day)
+                        target_month += 1
+
+                last_day_target_month = calendar.monthrange(target_year, target_month)[1]
+                if day < 1 or day > last_day_target_month:
+                    raise ValueError("day out of range for target month")
+
+                deadline = date(target_year, target_month, day)
             except ValueError:
                 send_telegram_msg("Bad day format, just send a no. Task saved without deadline", chat_id)
         new_task = Task(task=task_text, dead_line=deadline)
@@ -248,7 +261,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
     return {"ok": True}
 
-def ai_helper(db:Session = Depends(get_db)):
+def ai_helper(db: Session):
     pending_tasks = db.query(Task).filter(Task.status == False).all()
     response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -270,8 +283,10 @@ def ai_helper(db:Session = Depends(get_db)):
     return response.json()["choices"][0]["message"]["content"]
 
 @app.get("/daily-reminder")
-def daily_reminder(db : Session = Depends(get_db)):
+def daily_reminder_route(db: Session = Depends(get_db)):
+    """Manual/HTTP-triggered version — uses FastAPI's request-scoped session."""
     pending = db.query(Task).filter(Task.status == False).all()
+    roast = None
 
     if pending:
         pending_tasks_list = f"Pending Tasks List as of : {date.today()}"+"\n"+"\n".join([f"{t.task}" for t in pending])
@@ -280,7 +295,27 @@ def daily_reminder(db : Session = Depends(get_db)):
         send_telegram_msg(roast, TELEGRAM_CHAT_ID)
         send_main_menu(TELEGRAM_CHAT_ID)
 
-    return {"roast":roast,"pending tasks":len(pending)}
+    return {"roast": roast, "pending tasks": len(pending)}
+
+
+def daily_reminder():
+    """Scheduler-triggered version — opens/closes its own session since
+    APScheduler calls this outside of FastAPI's dependency injection."""
+    db = SessionLocal()
+    try:
+        pending = db.query(Task).filter(Task.status == False).all()
+        roast = None
+
+        if pending:
+            pending_tasks_list = f"Pending Tasks List as of : {date.today()}"+"\n"+"\n".join([f"{t.task}" for t in pending])
+            roast = get_roast(pending)
+            send_telegram_msg(pending_tasks_list, TELEGRAM_CHAT_ID)
+            send_telegram_msg(roast, TELEGRAM_CHAT_ID)
+            send_main_menu(TELEGRAM_CHAT_ID)
+
+        return {"roast": roast, "pending tasks": len(pending)}
+    finally:
+        db.close()
 
 
 def get_roast(pending_tasks):
@@ -304,8 +339,8 @@ def get_roast(pending_tasks):
     )
     return response.json()["choices"][0]["message"]["content"]
 
-schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
-schedular.start()
+# schedular.add_job(daily_reminder, "cron", hour=18, minute=0)
+# schedular.start()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
