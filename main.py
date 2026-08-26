@@ -124,7 +124,8 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         elif callback_data == "Notes_menu":
             send_notes_menu(chat_id)
         elif callback_data == "Bot_help":
-            ai_helper()
+            send_telegram_msg(ai_helper(),chat_id)
+            send_main_menu(chat_id)
         elif callback_data == "back_to_menu":
             send_main_menu(chat_id)
 
@@ -259,7 +260,7 @@ def ai_helper(db:Session = Depends(get_db)):
                 "model" : OPENROUTER_LLM,
                 "messages":[
                     {"role":"system", "content":"""You're a savage, sarcastic roast and helper bot. 
-                    help user plan, organize and do their pending tasks.
+                    help user plan, organize and do their pending tasks sort and adjust the task based on deadlines.
                     answer their queries keep it short, funny, brutal. No sugarcoating or sympathy"""
                     },
                     {"role":"user", "content": f"My pending tasks : {pending_tasks}"}
@@ -267,7 +268,6 @@ def ai_helper(db:Session = Depends(get_db)):
             }    
         )
     return response.json()["choices"][0]["message"]["content"]
-
 
 @app.get("/daily-reminder")
 def daily_reminder(db : Session = Depends(get_db)):
