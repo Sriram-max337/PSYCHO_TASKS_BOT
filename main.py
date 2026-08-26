@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, Request
 from dotenv import load_dotenv
 import requests
 import uvicorn
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, Text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 import os
 from datetime import date
@@ -35,7 +35,7 @@ class Task(Base):
 class Note(Base):
     __tablename__="notes"
     note_id = Column(Integer, primary_key=True)
-    notes = Column(String)
+    notes = Column(Text)
     created_on = Column(Date)
 
 def get_db():
@@ -58,7 +58,8 @@ def send_main_menu(chat_id):
         "reply_markup": {
             "inline_keyboard": [
                 [{"text":"TASKS", "callback_data":"Tasks_menu"}],
-                [{"text":"NOTES","callback_data":"Notes_menu"}]
+                [{"text":"NOTES","callback_data":"Notes_menu"}],
+                [{"text":"BOT HELP","callback_data":"Bot_help"}]
             ]
         }
     }
@@ -122,6 +123,8 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             send_tasks_menu(chat_id)
         elif callback_data == "Notes_menu":
             send_notes_menu(chat_id)
+        elif callback_data == "Bot_help":
+            ai_helper()
         elif callback_data == "back_to_menu":
             send_main_menu(chat_id)
 
@@ -243,6 +246,28 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             send_notes_menu(chat_id)
 
     return {"ok": True}
+
+def ai_helper(db:Session = Depends(get_db)):
+    pending_tasks = db.query(Task).filter(Task.status == False).all()
+    response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization" : f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type":"application/json"
+            },
+            json={
+                "model" : OPENROUTER_LLM,
+                "messages":[
+                    {"role":"system", "content":"""You're a savage, sarcastic roast and helper bot. 
+                    help user plan, organize and do their pending tasks.
+                    answer their queries keep it short, funny, brutal. No sugarcoating or sympathy"""
+                    },
+                    {"role":"user", "content": f"My pending tasks : {pending_tasks}"}
+                ]
+            }    
+        )
+    return response.json()["choices"][0]["message"]["content"]
+
 
 @app.get("/daily-reminder")
 def daily_reminder(db : Session = Depends(get_db)):
