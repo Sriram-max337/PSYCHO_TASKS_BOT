@@ -138,22 +138,21 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             tasks = db.query(Task).filter(Task.status == False).all()
             if not tasks:
                 send_telegram_msg("No pending tasks 🎉", chat_id)
-                send_main_menu(chat_id)
+                send_tasks_menu(chat_id)
             else:
                 task_list = f"📋 Pending Tasks List as of {date.today()}"+"\n"+"\n".join([f"-> {t.task} (due {t.dead_line})" if t.dead_line else f"-> {t.task} (no deadline mentioned)"
                                        for t in tasks])
                 send_telegram_msg(task_list, chat_id)
-                send_main_menu(chat_id)
+                send_tasks_menu(chat_id)
 
         elif callback_data == "menu_done":
             tasks = db.query(Task).filter(Task.status == False).all()
             if not tasks:
                 send_telegram_msg("No pending tasks 🎉", chat_id)
-                send_main_menu(chat_id)
+                send_tasks_menu(chat_id)
             else:
                 send_task_buttons(chat_id, tasks, prefix="done")
                 
-
         elif callback_data.startswith("done_"):
             task_id = int(callback_data.replace("done_", ""))
             task = db.query(Task).filter(Task.task_id == task_id).first()
@@ -162,7 +161,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 task.finished_on = date.today()
                 db.commit()
                 send_telegram_msg(f"Marked done: {task.task}", chat_id)
-                send_main_menu(chat_id)
+                send_tasks_menu(chat_id)
 
         elif callback_data == "menu_add_note":
             user_states[chat_id] = "waiting_for_note"
@@ -171,24 +170,22 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             notes = db.query(Note).all()
             if not notes:
                 send_telegram_msg("No Notes added yet", chat_id)
-                send_main_menu(chat_id)
+                send_notes_menu(chat_id)
             else:
                 notes_list = f"Added Notes"+"\n"+"\n".join(f"-> {n.note}" for n in notes)
                 send_telegram_msg(notes_list, chat_id)
-                send_main_menu(chat_id)
+                send_notes_menu(chat_id)
 
         elif callback_data == "menu_delete_note":
             notes = db.query(Note).all()
             if not notes:
                 send_telegram_msg("No Notes added yet", chat_id)
-                send_main_menu(chat_id)
+                send_notes_menu(chat_id)
             else:
                 user_states[chat_id] = "waiting_for_delete_note"
                 notes_list = f"Added Notes"+"\n"+"\n".join(f"{n.note_id} : {n.note}" for n in notes)
                 send_telegram_msg(notes_list, chat_id)
             
-
-
         return {"ok": True}
 
     message_text = data["message"]["text"]
@@ -231,7 +228,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         db.commit()
         user_states[chat_id] = None
         send_telegram_msg(f"Added: {task_text}" + (f" (due {deadline})" if deadline else ""), chat_id)
-        send_main_menu(chat_id)
+        send_tasks_menu(chat_id)
 
     elif user_states.get(chat_id) == "waiting_for_note":
         notes_text = message_text
@@ -240,7 +237,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         db.commit()
         user_states[chat_id] = None
         send_telegram_msg(f"Added: {notes_text}", chat_id)
-        send_main_menu(chat_id)
+        send_notes_menu(chat_id)
 
     elif user_states.get(chat_id) == "waiting_for_delete_note":
         notes_text = message_text
