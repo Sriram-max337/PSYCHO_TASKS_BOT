@@ -228,6 +228,10 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         db.commit()
         user_states[chat_id] = None
         send_telegram_msg(f"Added: {task_text}" + (f" (due {deadline})" if deadline else ""), chat_id)
+        tasks = db.query(Task).filter(Task.status == False).all()
+        task_list = f"📋 Pending Tasks List as of {date.today()}"+"\n"+"\n".join([f"-> {t.task} (due {t.dead_line})" if t.dead_line else f"-> {t.task} (no deadline mentioned)"
+                                               for t in tasks])
+        send_telegram_msg(task_list, chat_id)
         send_tasks_menu(chat_id)
 
     elif user_states.get(chat_id) == "waiting_for_note":
